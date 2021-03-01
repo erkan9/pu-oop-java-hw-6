@@ -7,7 +7,6 @@ import java.util.ArrayList;
 
 //TODO implement snake movement with MOUSE
 //TODO implement pause control
-//TODO end game when points are 300
 //TODO refactor
 
 @SuppressWarnings("serial")
@@ -19,16 +18,18 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     private Graphics2D g2d;
     private BufferedImage image;
 
-    private boolean running;
+    private boolean isGameRunning;
 
-    Entity head;
-    Entity apple;
-    ArrayList<Entity> snake;
-    private final byte SIZE = 10;
+    Entity snakeHead;
+    Apple apple;
+    Obstacle obstacle;
+    private ArrayList<Entity> snake;
+    public static final byte SIZE = 10;
     private int points;
-    private byte snakeLength = 3;
+    private byte snakeLength = 1;
 
-    private boolean gameOver;
+    private boolean isGameOver;
+    private boolean isWin = false;
 
     private int snakeX, snakeY;
 
@@ -45,7 +46,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         requestFocus();
         addKeyListener(this);
     }
-
     @Override
     public void addNotify() {
 
@@ -84,6 +84,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         if(k == KeyEvent.VK_ENTER) {
 
             start = true;
+
         }
     }
 
@@ -117,9 +118,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     @Override
     public void run() {
 
-        init();
+        boardGameValues();
 
-        while (running) {
+        while (isGameRunning) {
 
             boardUpdater();
 
@@ -162,7 +163,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     private void boardUpdater() {
 
-        if(gameOver){
+        if(isGameOver){
 
             if (start){
 
@@ -175,13 +176,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         snakePositionSetterInMove();
 
+        isPointsEnoughToFinishGame();
+
         isSnakeBiteItself();
 
         isSnakeAteApple();
 
+        isSnakeAteObstacle();
+
         checkLogic();
     }
-
 
     /**
      * Method that sets Snake Box Positions during Movement
@@ -195,7 +199,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 snake.get(i).setPosition(snake.get(i - 1).getCoordinateX(), snake.get(i - 1).getCoordinateY());
             }
 
-            head.move(snakeX, snakeY);
+            snakeHead.move(snakeX, snakeY);
         }
     }
 
@@ -231,14 +235,28 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     private void resetIfGameOver() {
 
-        if(gameOver){
+        if(isGameOver){
 
             if (start){
 
                 resetBoard();
             }
         }
-        //return gameOver;
+        //return isGameOver;
+    }
+
+    /**
+     * Method that checks if the player reached enough points to finish the game
+     */
+    private void isPointsEnoughToFinishGame() {
+
+        int maxPoints = 300;
+
+        if(points >= maxPoints) {
+
+            isGameOver = true;
+            isWin = true;
+        }
     }
 
     /**
@@ -248,9 +266,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         for(Entity e : snake) {
 
-            if(e.isSnakeHitSomething(head)) {
+            if(e.isSnakeHitSomething(snakeHead)) {
 
-                gameOver = true;
+                isGameOver = true;
                 break;
             }
         }
@@ -261,35 +279,47 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     private void checkLogic() {
 
-        if(head.getCoordinateX() < 0) {
+        if(snakeHead.getCoordinateX() < 0) {
 
-            head.setCoordinateX(WIDTH);
+            snakeHead.setCoordinateX(WIDTH);
         }
-        if(head.getCoordinateX() > WIDTH) {
+        if(snakeHead.getCoordinateX() > WIDTH) {
 
-            head.setCoordinateX(0);
+            snakeHead.setCoordinateX(0);
         }
-        if(head.getCoordinateY() < 0) {
+        if(snakeHead.getCoordinateY() < 0) {
 
-            head.setCoordinateY(HEIGHT);
+            snakeHead.setCoordinateY(HEIGHT);
         }
-        if(head.getCoordinateY() > HEIGHT) {
+        if(snakeHead.getCoordinateY() > HEIGHT) {
 
-            head.setCoordinateY(0);
+            snakeHead.setCoordinateY(0);
         }
     }
+
+    /**
+     * Check if the Snake tried to eat an Obstacle
+     */
+    private void isSnakeAteObstacle() {
+
+        if(obstacle.isSnakeHitSomething(snakeHead)){
+
+            isGameOver = true;
+        }
+    }
+
 
     /**
      * Method that Updates Points and Length of snake when Apple is eaten
      */
     private void isSnakeAteApple() {
 
-        if(apple.isSnakeHitSomething(head)){
+        if(apple.isSnakeHitSomething(snakeHead)){
 
             points += 10;
             snakeLength++;
 
-            setApple();
+            apple.setApple();
 
             Entity e = new Entity(SIZE);
 
@@ -304,7 +334,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     private void requestRender() {
 
-        render(g2d);
+        render();
 
         Graphics g = getGraphics();
 
@@ -312,13 +342,19 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g.dispose();
     }
 
-    private void init() {
+    /**
+     * Method that sets board and Game values at the beginning of the game
+     */
+    private void boardGameValues() {
 
         image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         g2d = image.createGraphics();
-        running = true;
+
+        isGameRunning = true;
+
+        isGameOver = false;
+
         resetBoard();
-        gameOver = false;
     }
 
     /**
@@ -330,7 +366,11 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         drawSnake();
 
-        setApple();
+        apple.setApple();
+
+        //set obstackles from here
+
+        obstacle.setObstacles();
     }
 
     /**
@@ -340,21 +380,24 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         snake = new ArrayList<>();
 
-        head = new Entity(SIZE);
+        snakeHead = new Entity(SIZE);
 
-        head.setPosition(WIDTH / 2 ,HEIGHT / 2 );
+        snakeHead.setPosition(WIDTH / 2 ,HEIGHT / 2 );
 
-        snake.add(head);
+        snake.add(snakeHead);
 
-        apple = new Entity(SIZE);
+        apple = new Apple(SIZE);
+
+        //here the new obstacles are set, create with for obstacles here
+        obstacle = new Obstacle(SIZE);
 
         points = 0;
-        snakeLength = 3;
+        snakeLength = 1;
 
         snakeX = 0;
         snakeY = 0;
 
-        gameOver = false;
+        isGameOver = false;
     }
 
     /**
@@ -362,43 +405,31 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
      */
     private void drawSnake() {
 
-        for(int i = 0; i < 2; i++) {
+        //For loop to change snake's start length
+        for(int i = 0; i < 0; i++) {
 
             Entity e = new Entity(SIZE);
 
-            e.setPosition(head.getCoordinateX() + (i + SIZE), head.getCoordinateY());
+            e.setPosition(snakeHead.getCoordinateX() + (i + SIZE), snakeHead.getCoordinateY());
 
             snake.add(e);
         }
     }
 
     /**
-     * Method that sets an apple on the Board
-     */
-    public void setApple() {
-
-        int appleXCoordinate = (int) (Math.random() * (WIDTH - SIZE));
-        int appleYCoordinate = (int) (Math.random() * (HEIGHT - SIZE));
-
-        appleXCoordinate = appleXCoordinate - (appleXCoordinate % SIZE);
-        appleYCoordinate = appleYCoordinate - (appleYCoordinate % SIZE);
-
-        apple.setPosition(appleXCoordinate, appleYCoordinate);
-    }
-
-    /**
      * Method that Renders the Snake, the Apple and Game messages
-     * @param g2d Object of Graphics2D
      */
-    public void render(Graphics2D g2d) {
+    public void render() {
 
         renderSnake();
 
-        renderApple();
+        apple.renderApple(g2d);
 
         gameMessageDisplay();
 
         informationDisplay();
+
+        obstacle.renderObstacle(g2d);
     }
 
     private void renderSnake() {
@@ -412,29 +443,34 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
     }
 
-    private void renderApple() {
-
-        g2d.setColor(Color.RED);
-        apple.render(g2d);
-    }
-
     private void informationDisplay() {
 
         g2d.drawString("Points: " + points, 7 ,11 );
         g2d.drawString("Length: " + snakeLength, 340 ,11 );
     }
 
+    /**
+     * Method that display messages at the Start,End of the game
+     */
     private void gameMessageDisplay() {
 
-        if (gameOver) {
-            g2d.drawString("GAME OVER", 160 ,150 );
+        if (isGameOver) {
+
+            if(isWin){
+
+                g2d.drawString("YOU ARE A WINNER", 140 ,150 );
+            }
+            else {
+                g2d.drawString("GAME OVER", 160, 150);
+            }
             g2d.drawString("Press Enter to Restart", 134 ,170 );
         }
+
         g2d.setColor(Color.WHITE);
 
         if(snakeX == 0 && snakeY == 0){
 
-            g2d.drawString("Click any key to Start!", 140 ,150 );
+            g2d.drawString("Press Arrow key to Start!", 140 ,150 );
         }
     }
 }
