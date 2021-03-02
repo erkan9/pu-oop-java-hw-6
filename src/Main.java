@@ -1,6 +1,8 @@
-import javax.swing.*;
-import java.awt.*;
+import game.GameFrame;
 
+/**
+ * @author Erkan Kamber
+ */
 public class Main {
 
     public static void main(String[] args) {
